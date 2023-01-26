@@ -1,0 +1,85 @@
+// Create variable for area of interest
+var aoi = ee.FeatureCollection("users/godiewyn54/mida");
+// First Define the acquisation period- This is our study period 2010-2022
+
+var startDate = ee.Date('2010-01-01');
+var endDate = ee.Date('2022-12-31');
+
+//Define the landsat collection
+var l8 = ee.ImageCollection('LANDSAT/LC08/C02/T1_TOA');
+
+
+//Compute NDVI
+var addNDVI = function(image) {
+  var ndvi = image.normalizedDifference(['B5', 'B4']).rename('NDVI');
+  return image.addBands(ndvi);
+};
+
+
+//Compute evi
+var addEVI = function(image) {
+  var evi = image.expression(
+        '2.5 * ((NIR - RED) / (NIR + 6 * RED - 7.5 * BLUE + 1))', {
+            'NIR': image.select('B5'),
+            'RED': image.select('B4'),
+            'BLUE': image.select('B2')
+        }).rename("EVI");
+        return image.addBands(evi);
+        };
+
+//Compute MSAVI
+var addMSAVI = function(image){
+  var msavi = image.expression ('(2 * NIR + 1 - sqrt(pow((2 * NIR + 1), 2) - 8 * (NIR - RED)) ) / 2',{
+        'NIR': image.select ('B5'),
+        'RED': image.select ('B4')
+    }).rename("MSAVI");
+    return image.addBands(msavi);
+};
+
+//Compute mNDWI
+var addMNDWI = function(image){
+  var mndwi = image.expression('((GREEN - SWIR) / (GREEN + SWIR))', {
+            'GREEN': image.select ('B3'),
+            'SWIR': image.select ('B6')
+        }).rename("MNDWI");
+
+    return image.addBands(mndwi);
+};
+
+//Compute NDBI
+var addNDBI = function(image){
+  var ndbi = image.expression('((SWIR - NIR) / (SWIR + NIR))', {
+            'SWIR': image.select ('B6'),
+            'NIR': image.select ('B5')
+        }).rename("NDBI");
+        return image.addBands(ndbi);
+};
+
+//Compute LAI
+
+
+//Define image collection
+var l8 = ee.ImageCollection('LANDSAT/LC08/C02/T1_TOA');
+var l2016 = l8.filterDate('2013-01-01', '2016-12-31')
+                  .map(addNDBI).map(addMNDWI).map(addMSAVI).map(addEVI).map(addNDVI).map(function(image){return image.clip(aoi)}).median();
+                    
+var l2019 = l8.filterDate('2017-01-01', '2019-12-31')
+                  .map(addNDBI).map(addMNDWI).map(addMSAVI).map(addEVI).map(addNDVI).map(function(image){return image.clip(aoi)}).median();
+                    
+var l2022 = l8.filterDate('2020-01-01', '2022-12-31')
+                  .map(addNDBI).map(addMNDWI).map(addMSAVI).map(addEVI).map(addNDVI).map(function(image){return image.clip(aoi)}).median();
+
+var visParams = {bands: ['B4', 'B3', 'B2'], max: 0.3};
+Map.addLayer(l2016, {bands: 'MNDWI', min: 0.0, max: 1.0, palette: ['0000ff', '00ffff', 'ffff00', 'ff0000', 'ffffff']});
+//'0000ff', '00ffff', 'ffff00', 'ff0000', 'ffffff'
+  
+// Get information about the bands as a list.
+var bandNames = l2016.bandNames();
+print('Band names:', bandNames);  // ee.List of band names
+
+var bandNames = l2019.bandNames();
+print('Band names:', bandNames);  // ee.List of band names
+
+var bandNames = l2022.bandNames();
+print('Band names:', bandNames);  // ee.List of band names
+
